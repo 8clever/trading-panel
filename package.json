@@ -18,6 +18,7 @@
     "react-dom": "18.2.0",
     "react-is": "18.2.0",
     "react-router-dom": "^6.21.1",
+    "socks-proxy-agent": "^8.0.2",
     "styled-components": "5.3.6"
   },
   "devDependencies": {
