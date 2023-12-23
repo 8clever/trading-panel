@@ -39,7 +39,5 @@ const FullLayout = styled(Layout)`
 `
 
 const BodyContent = styled.div`
-	max-width: 450px;
-	margin: auto;
 	padding: 20px;
 `

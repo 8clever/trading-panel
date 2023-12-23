@@ -33,6 +33,11 @@ export class Storage<T extends { id: string }> {
 		return this.copy(list);
 	}
 
+	async delete (id: string) {
+		this.collection.delete(id);
+		this.persist();
+	}
+
 	async findById (id: string): Promise<T | null> {
 		const i = this.collection.get(id);
 		return i ? this.copy(i) : null;
