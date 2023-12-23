@@ -1,8 +1,9 @@
-import { Form, Input, Modal, Select } from "antd";
-import * as ccxt from 'ccxt'
+import { Button, Form, Input, Modal, Select, Typography } from "antd";
 import React from "react";
+import * as ccxt from 'ccxt'
 import { Provider } from "./entities";
 import { storage } from "./Storage";
+import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
 
 interface IProps {
 	visible: boolean;
@@ -11,8 +12,12 @@ interface IProps {
 	value?: string | null;
 }
 
+type Valid = 'valid' | "not-valid" | "not-checked"
+
 export function ProviderModal (props: IProps) {
 	const { onSave, toggle, value, visible } = props;
+
+	const [ status, setStatus ] = React.useState<Valid>('not-checked')
 
 	const providers = React.useMemo(() => {
 		return Object.keys(ccxt.exchanges);
@@ -29,6 +34,7 @@ export function ProviderModal (props: IProps) {
 	React.useEffect(() => {
 		if (!visible) return;
 		
+		setStatus('not-checked');
 		form.resetFields();
 		if (!value) return;
 
@@ -39,6 +45,19 @@ export function ProviderModal (props: IProps) {
 			form.setFieldsValue(item);
 		})();
 	}, [ value, visible, form.resetFields ]);
+
+	// TODO Complete work with Desktop application
+	const validate = React.useCallback(async () => {
+		const provider: Provider = await form.validateFields();
+		const exch = new ccxt.exchanges[provider.provider as keyof typeof ccxt.exchanges](provider);
+		try {
+			const ticker = await exch.fetchTicker('BTC-USDT')
+			console.log(ticker)
+			setStatus('valid');
+		} catch (e) {
+			setStatus('not-valid')
+		}
+	}, [ form.getFieldsValue ]);
 
 	return (
 		<Modal open={props.visible} title="Provider" onCancel={props.toggle} onOk={form.submit}>
@@ -63,6 +82,15 @@ export function ProviderModal (props: IProps) {
 				<Form.Item name={'password'} label="Password">
 					<Input />
 				</Form.Item>
+				<Button 
+					icon={
+						status === "valid" ? <Typography.Text type="success"><CheckOutlined /></Typography.Text> :
+						status === "not-valid" ? <Typography.Text type="danger"><CloseOutlined /></Typography.Text> :
+						null
+					}
+					onClick={validate}>
+					Validate
+				</Button>
 			</Form>
 		</Modal>
 	)
