@@ -22,7 +22,7 @@ export function Home () {
 					<Button icon={<SettingOutlined />} />
 				</Link>
 			}>
-			<Form onFinish={formFinish} style={{ maxWidth: 450, margin: "auto" }}>
+			<Form onFinish={formFinish}>
 				<Form.Item name={'symbol'}>
 					<Input placeholder="Symbol" />
 				</Form.Item>
