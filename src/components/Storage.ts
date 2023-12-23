@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid'
+import { Provider } from './entities';
 export class Storage<T extends { id: string }> {
 
 	constructor (private name: string) {
@@ -21,22 +22,29 @@ export class Storage<T extends { id: string }> {
 		}
 	}
 
-	save (obj: Partial<T>) {
+	async save (obj: Partial<T>) {
 		const upd = (obj.id ? { ...this.collection.get(obj.id), ...obj } : { ...obj, id: uuid() }) as T;
-		this.collection.set(upd.id, upd);
+		this.collection.set(upd.id, this.copy(upd));
 		this.persist();
 	}
 
-	list () {
-		return Array.from(this.collection.values())
+	async list (): Promise<T[]> {
+		const list = Array.from(this.collection.values());
+		return this.copy(list);
 	}
 
-	findById (id: string) {
-		return this.collection.get(id);
+	async findById (id: string): Promise<T | null> {
+		const i = this.collection.get(id);
+		return i ? this.copy(i) : null;
+	}
+
+	private copy<T> (obj: T): T {
+		const str = JSON.stringify(obj);
+		return JSON.parse(str);
 	}
 
 }
 
 export const storage = Object.freeze({
-	providers: new Storage('providers')
+	providers: new Storage<Provider>('providers')
 })
