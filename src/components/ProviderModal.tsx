@@ -18,7 +18,7 @@ export function ProviderModal (props: IProps) {
 		<Modal open={props.visible} title="Provider" onCancel={props.toggle}>
 			<Form>
 				<Form.Item name="provider" label="Provider">
-					<Select showSearch placeholder="Not Selected">
+					<Select showSearch>
 						{providers.map(p => {
 							return <Select.Option key={p} value={p}>{p}</Select.Option>
 						})}
