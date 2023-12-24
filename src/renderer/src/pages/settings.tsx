@@ -1,12 +1,12 @@
-import { PageLayout } from "@src/components/PageLayout";
+import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 import { DeleteOutlined, EditOutlined, PlusOutlined, RollbackOutlined } from '@ant-design/icons'
 import { Button, Flex, Space, Table, TableColumnProps } from "antd";
-import { ProviderModal } from "@src/components/ProviderModal";
-import { useModal } from "@src/hooks/useModal";
+import { ProviderModal } from "@renderer/components/ProviderModal";
+import { useModal } from "@renderer/hooks/useModal";
 import React from "react";
-import { Provider } from "@src/components/entities";
-import { storage } from "@src/components/Storage";
+import { Provider } from "@renderer/components/entities";
+import { storage } from "@renderer/components/Storage";
 
 const tableActions = React.createContext({
 	onEdit: (id: string) => {},

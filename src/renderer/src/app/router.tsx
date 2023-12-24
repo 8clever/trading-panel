@@ -1,6 +1,6 @@
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
-import { Home } from "@src/pages/home";
-import { Settings } from "@src/pages/settings";
+import { Home } from "@renderer/pages/home";
+import { Settings } from "@renderer/pages/settings";
 
 export function Router () {
 	return (

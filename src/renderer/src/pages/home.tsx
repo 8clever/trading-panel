@@ -1,7 +1,7 @@
 import { Button, Flex, Form, Input, InputNumber } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined } from '@ant-design/icons'
 import React from "react";
-import { PageLayout } from "@src/components/PageLayout";
+import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 
 interface TradeFormOutput {
