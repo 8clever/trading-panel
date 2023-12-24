@@ -1,6 +1,5 @@
-import { Button, Form, Input, Modal, Select, Typography } from "antd";
+import { Button, Form, Input, Modal, Select, Typography, notification } from "antd";
 import React from "react";
-import * as ccxt from 'ccxt'
 import { Provider } from "./entities";
 import { storage } from "./Storage";
 import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
@@ -12,16 +11,12 @@ interface IProps {
 	value?: string | null;
 }
 
-type Valid = 'valid' | "not-valid" | "not-checked"
+type Valid = 'valid' | "not-valid" | "not-checked" | 'loading'
 
 export function ProviderModal (props: IProps) {
 	const { onSave, toggle, value, visible } = props;
 
 	const [ status, setStatus ] = React.useState<Valid>('not-checked')
-
-	const providers = React.useMemo(() => {
-		return Object.keys(ccxt.exchanges);
-	}, []);
 
 	const finish = React.useCallback((value: Provider) => {
 		storage.providers.save(value);
@@ -49,12 +44,15 @@ export function ProviderModal (props: IProps) {
 	// TODO Complete work with Desktop application
 	const validate = React.useCallback(async () => {
 		const provider: Provider = await form.validateFields();
-		const exch = new ccxt.exchanges[provider.provider as keyof typeof ccxt.exchanges](provider);
+		setStatus('loading');
 		try {
-			const ticker = await exch.fetchTicker('BTC-USDT')
-			console.log(ticker)
+			await window.exchangeApi(provider, 'fetchBalance');
 			setStatus('valid');
 		} catch (e) {
+			console.error(e)
+			notification.error({
+				message: (e as Error).message
+			});
 			setStatus('not-valid')
 		}
 	}, [ form.getFieldsValue ]);
@@ -68,7 +66,7 @@ export function ProviderModal (props: IProps) {
 				</Form.Item>
 				<Form.Item name="provider" label="Provider">
 					<Select showSearch>
-						{providers.map(p => {
+						{window.exchanges.map(p => {
 							return <Select.Option key={p} value={p}>{p}</Select.Option>
 						})}
 					</Select>
@@ -83,6 +81,7 @@ export function ProviderModal (props: IProps) {
 					<Input />
 				</Form.Item>
 				<Button 
+					loading={status === "loading"}
 					icon={
 						status === "valid" ? <Typography.Text type="success"><CheckOutlined /></Typography.Text> :
 						status === "not-valid" ? <Typography.Text type="danger"><CloseOutlined /></Typography.Text> :
