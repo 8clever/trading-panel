@@ -1,4 +1,4 @@
-import { Button, Flex, Form, InputNumber, Select, Typography } from "antd";
+import { Button, Flex, Form, InputNumber, Select, Typography, notification } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined } from '@ant-design/icons'
 import React from "react";
 import { PageLayout } from "@renderer/components/PageLayout";
@@ -18,11 +18,11 @@ export function Home () {
 
 	const [ ticker, setTicker ] = React.useState<Ticker | null>(null)
 
-	const [ loadTickers, setLoadTickers ] = React.useState(false);
-
 	const selectedProviderId: string = Form.useWatch('provider', form);
 
 	const selectedSymbol: string = Form.useWatch('symbol', form);
+
+	const [ loading, setLoading ] = React.useState<'load-symbols' | 'load-open-long' | 'load-open-short' | 'none'>('none')
 
 	const provider = React.useMemo(() => {
 		if (selectedProviderId)
@@ -34,12 +34,12 @@ export function Home () {
 		if (!provider) return;
 
 		(async () => {
-			setLoadTickers(true)
+			setLoading('load-symbols')
 			try {
 				const tickers: Tickers = await window.exchangeApi(provider, 'fetchTickers');
 				setTickers(tickers);
 			} finally {
-				setLoadTickers(false);
+				setLoading('none');
 			}
 		})()
 	}, [ provider ]);
@@ -55,15 +55,49 @@ export function Home () {
 		if (!selectedSymbol) return;
 		if (!provider) return;
 
-		const watch = setInterval(async () => {
+		const loadTickers = async () => {
 			const ticker: Ticker = await window.exchangeApi(provider!, 'fetchTicker', selectedSymbol);
+			console.info('LOAD:', ticker.symbol, ticker.close)
 			setTicker(ticker);
-		}, 1000);
+		}
+
+		loadTickers();
+		const watch = setInterval(loadTickers, 3000);
 
 		return () => {
 			clearInterval(watch);
 		}
 	}, [ selectedSymbol, provider ]);
+
+	const openPosition = React.useCallback(async (diretion: "long" | "short") => {
+		if (!provider) return;
+		if (!ticker) return;
+
+		setLoading(`load-open-${diretion}`);
+		const { margin } = await form.validateFields() as { tp: number, sl: number, margin: number };
+		const price = diretion === 'long' ? ticker.ask : ticker.bid;
+		const symbol = ticker.symbol;
+		const amount = margin / price!
+		const side = diretion === "long" ? "buy" : "sell";
+		const type = 'market';
+		const params = {};
+		try {
+			const order = await window.exchangeApi(provider, 'createOrder', symbol, type, side, amount, price, params);
+			console.log(order);
+		} catch (e) {
+			notification.error({ message: (e as Error).message });
+		} finally {
+			setLoading('none')
+		}
+	}, [ provider, ticker, form.validateFields ]);
+
+	const openLong = React.useCallback(() => {
+		openPosition('long');
+	}, [ openPosition ])
+
+	const openShort = React.useCallback(() => {
+		openPosition('short');
+	}, [ openPosition ])
 
 	return (
 		<PageLayout 
@@ -87,7 +121,7 @@ export function Home () {
 					</Select>
 				</Form.Item>
 				<Form.Item name={'symbol'}>
-					<Select disabled={loadTickers} loading={loadTickers} placeholder='Symbol' showSearch>
+					<Select disabled={loading === 'load-symbols'} loading={loading === 'load-symbols'} placeholder='Symbol' showSearch>
 						{Object.keys(tickers).map(s => {
 							return <Select.Option value={s} key={s}>{s}</Select.Option>
 						})}
@@ -97,8 +131,16 @@ export function Home () {
 					<InputNumber placeholder="Margin" style={{ width: '100%'}} />
 				</Form.Item>
 				<Flex gap={8}>
-					<Button block type="primary" icon={<ArrowUpOutlined />}>Open Long</Button>
-					<Button block icon={<ArrowDownOutlined />}>Open Short</Button>
+					<Form.Item name="tp" style={{ width: "100%" }}>
+						<InputNumber style={{ width: "100%" }} placeholder="TP %"/>
+					</Form.Item>
+					<Form.Item name="sl" style={{ width: "100%" }}>
+						<InputNumber style={{ width: "100%" }} placeholder="SL %"/>
+					</Form.Item>
+				</Flex>
+				<Flex gap={8}>
+					<Button loading={loading === 'load-open-long'} onClick={openLong} block type="primary" icon={<ArrowUpOutlined />}>Open Long</Button>
+					<Button loading={loading === 'load-open-short'} onClick={openShort} block icon={<ArrowDownOutlined />}>Open Short</Button>
 				</Flex>
 			</Form>
 		</PageLayout>

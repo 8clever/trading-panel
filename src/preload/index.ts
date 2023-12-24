@@ -21,7 +21,7 @@ function exchangeApi (...args: object[]) {
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('exchanges', Object.keys(exchanges))
+    contextBridge.exposeInMainWorld('exchanges', exchanges)
     contextBridge.exposeInMainWorld('exchangeApi', exchangeApi)
   } catch (error) {
     console.error(error)
