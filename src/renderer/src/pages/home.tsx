@@ -69,18 +69,28 @@ export function Home () {
 		}
 	}, [ selectedSymbol, provider ]);
 
-	const openPosition = React.useCallback(async (diretion: "long" | "short") => {
+	const openPosition = React.useCallback(async (direction: "long" | "short") => {
 		if (!provider) return;
 		if (!ticker) return;
 
-		setLoading(`load-open-${diretion}`);
-		const { margin } = await form.validateFields() as { tp: number, sl: number, margin: number };
-		const price = diretion === 'long' ? ticker.ask : ticker.bid;
+		setLoading(`load-open-${direction}`);
+		const { margin, tp, sl } = await form.validateFields() as { tp: number, sl: number, margin: number };
+		const price = direction === 'long' ? ticker.ask : ticker.bid;
 		const symbol = ticker.symbol;
 		const amount = margin / price!
-		const side = diretion === "long" ? "buy" : "sell";
+		const side = direction === "long" ? "buy" : "sell";
 		const type = 'market';
-		const params = {};
+		const params: Record<string, object> = {};
+		if (tp && price) {
+			const range = price / 100 * tp
+			const triggerPrice = direction === "long" ? price + range : price - range;
+			params.takeProfit = { type: "market", triggerPrice };
+		}
+		if (sl && price) {
+			const range = price / 100 * sl;
+			const triggerPrice = direction === "long" ? price - range : price + range;
+			params.stopLoss = { type: "market", triggerPrice }
+		}
 		try {
 			const order = await window.exchangeApi(provider, 'createOrder', symbol, type, side, amount, price, params);
 			console.log(order);
