@@ -1,11 +1,11 @@
-import { Button, Flex, Form, InputNumber, Select } from "antd";
+import { Button, Flex, Form, InputNumber, Select, Typography } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined } from '@ant-design/icons'
 import React from "react";
 import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 import { storage } from "@renderer/components/Storage";
 import { Provider } from "@renderer/components/entities";
-import type { Tickers } from "ccxt";
+import type { Ticker, Tickers } from "ccxt";
 
 
 export function Home () {
@@ -16,9 +16,13 @@ export function Home () {
 
 	const [ tickers, setTickers ] = React.useState<Tickers>({});
 
+	const [ ticker, setTicker ] = React.useState<Ticker | null>(null)
+
 	const [ loadTickers, setLoadTickers ] = React.useState(false);
 
 	const selectedProviderId: string = Form.useWatch('provider', form);
+
+	const selectedSymbol: string = Form.useWatch('symbol', form);
 
 	const provider = React.useMemo(() => {
 		if (selectedProviderId)
@@ -43,10 +47,23 @@ export function Home () {
 	React.useEffect(() => {
 		(async () => {
 			const data = await storage.providers.list()
-			console.log(data)
 			setProviders(data);
 		})();
 	}, []);
+
+	React.useEffect(() => {
+		if (!selectedSymbol) return;
+		if (!provider) return;
+
+		const watch = setInterval(async () => {
+			const ticker: Ticker = await window.exchangeApi(provider!, 'fetchTicker', selectedSymbol);
+			setTicker(ticker);
+		}, 1000);
+
+		return () => {
+			clearInterval(watch);
+		}
+	}, [ selectedSymbol, provider ]);
 
 	return (
 		<PageLayout 
@@ -57,6 +74,11 @@ export function Home () {
 				</Link>
 			}>
 			<Form form={form} style={{ maxWidth: 450, margin: "auto" }}>
+				{
+					ticker ?
+					<Typography.Title type="secondary">BID/ASK {ticker.bid}/{ticker.ask}</Typography.Title> :
+					null
+				}
 				<Form.Item name="provider">
 					<Select placeholder='Provider'>
 						{providers.map(p => {
