@@ -5,7 +5,7 @@ import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 import { storage } from "@renderer/components/Storage";
 import { Provider } from "@renderer/components/entities";
-import type { Ticker, Tickers } from "ccxt";
+import type { Market, Ticker } from "ccxt";
 
 
 export function Home () {
@@ -14,7 +14,7 @@ export function Home () {
 
 	const [ providers, setProviders ] = React.useState<Provider[]>([]);
 
-	const [ tickers, setTickers ] = React.useState<Tickers>({});
+	const [ markets, setMarkets ] = React.useState<Market[]>([]);
 
 	const [ ticker, setTicker ] = React.useState<Ticker | null>(null)
 
@@ -36,8 +36,9 @@ export function Home () {
 		(async () => {
 			setLoading('load-symbols')
 			try {
-				const tickers: Tickers = await window.exchangeApi(provider, 'fetchTickers');
-				setTickers(tickers);
+				const markets = await window.exchangeApi(provider, 'fetchMarkets');
+				console.log(markets)
+				setMarkets(markets);
 			} finally {
 				setLoading('none');
 			}
@@ -80,20 +81,19 @@ export function Home () {
 		const amount = margin / price!
 		const side = direction === "long" ? "buy" : "sell";
 		const type = 'market';
-		const params: Record<string, object> = {};
+		const params: Record<string, object | number> = {};
 		if (tp && price) {
 			const range = price / 100 * tp
 			const triggerPrice = direction === "long" ? price + range : price - range;
-			params.takeProfit = { type: "market", triggerPrice };
+			params.takeProfitPrice = triggerPrice;
 		}
 		if (sl && price) {
 			const range = price / 100 * sl;
 			const triggerPrice = direction === "long" ? price - range : price + range;
-			params.stopLoss = { type: "market", triggerPrice }
+			params.stopLossPrice = triggerPrice
 		}
 		try {
-			const order = await window.exchangeApi(provider, 'createOrder', symbol, type, side, amount, price, params);
-			console.log(order);
+			await window.exchangeApi(provider, 'createOrder', symbol, type, side, amount, price, params);
 		} catch (e) {
 			notification.error({ message: (e as Error).message });
 		} finally {
@@ -132,8 +132,9 @@ export function Home () {
 				</Form.Item>
 				<Form.Item name={'symbol'}>
 					<Select disabled={loading === 'load-symbols'} loading={loading === 'load-symbols'} placeholder='Symbol' showSearch>
-						{Object.keys(tickers).map(s => {
-							return <Select.Option value={s} key={s}>{s}</Select.Option>
+						{markets.map(m => {
+							if (!m) return null;
+							return <Select.Option value={m.symbol} key={m.symbol}>{m.symbol}</Select.Option>
 						})}
 					</Select>
 				</Form.Item>
