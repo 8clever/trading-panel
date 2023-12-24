@@ -45,7 +45,7 @@ app.whenReady().then(() => {
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+  });
 
   ipcMain.on('exchangeApi', async (evt, ...args) => {
     const [ msgid, provider, method, ...params ] = args
