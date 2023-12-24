@@ -7,7 +7,7 @@ function exchangeApi (...args: object[]) {
   const msgid = v4();
   return new Promise((res, rej) => {
     ipcRenderer.once(msgid, (e, ...response) => {
-      const [ err, ...result ] = response
+      const [ err, result ] = response
       
       if (err)
         return rej(err)

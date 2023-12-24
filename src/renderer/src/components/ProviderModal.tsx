@@ -46,7 +46,8 @@ export function ProviderModal (props: IProps) {
 		const provider: Provider = await form.validateFields();
 		setStatus('loading');
 		try {
-			await window.exchangeApi(provider, 'fetchBalance');
+			const balance = await window.exchangeApi(provider, 'fetchBalance');
+			console.info(balance)
 			setStatus('valid');
 		} catch (e) {
 			console.error(e)
