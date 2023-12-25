@@ -9,8 +9,8 @@ import { Provider } from "@renderer/components/entities";
 import { storage } from "@renderer/components/Storage";
 
 const tableActions = React.createContext({
-	onEdit: (id: string) => {},
-	onRemove: (id: string) => {}
+	onEdit: (_id: string) => {},
+	onRemove: (_id: string) => {}
 });
 
 function ColumnAction ({ item }: { item: Provider }) {

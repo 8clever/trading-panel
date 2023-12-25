@@ -1,5 +1,4 @@
-import { SettingOutlined } from "@ant-design/icons"
-import { Button, Flex, Layout, Space, Typography } from "antd"
+import { Flex, Layout, Space, Typography } from "antd"
 import React from "react"
 import styled from "styled-components"
 
