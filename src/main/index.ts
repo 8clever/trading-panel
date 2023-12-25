@@ -1,8 +1,8 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import * as ccxt from 'ccxt';
+import { ExchangeApi } from './api/exchange'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -33,6 +33,8 @@ function createWindow(): void {
   }
 }
 
+const exchangeApi = new ExchangeApi();
+
 app.whenReady().then(() => {
 
   electronApp.setAppUserModelId('com.electron')
@@ -47,16 +49,7 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   });
 
-  ipcMain.on('exchangeApi', async (evt, ...args) => {
-    const [ msgid, provider, method, ...params ] = args
-    const exchange = new ccxt[provider.provider](provider);
-    try {
-      const result = await exchange[method](...params);
-      evt.reply(msgid, null, result);
-    } catch (e) {
-      evt.reply(msgid, e)
-    }
-  })
+  exchangeApi.init();
 })
 
 app.on('window-all-closed', () => {
