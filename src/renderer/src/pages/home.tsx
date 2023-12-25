@@ -1,5 +1,5 @@
 import { Button, Flex, Form, InputNumber, Select, Space, Table, TableColumnsType, Typography, notification } from "antd";
-import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined, DeleteOutlined } from '@ant-design/icons'
+import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined, DeleteOutlined, FilterOutlined } from '@ant-design/icons'
 import React from "react";
 import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
@@ -249,6 +249,23 @@ export function Home () {
 		await window.exchangeApi(provider, 'closePosition', i.symbol, i.side, { id: i.id })
 	}, [ provider ]);
 
+	const [ filterQty, setFilterQty ] = React.useState<number | null>();
+
+	const filterBook = React.useCallback((value: OrderBook['asks'][number]) => {
+		if (filterQty && filterQty > 0 && value[1]) {
+			return value[1] > filterQty;
+		}
+		return true;
+	}, [ filterQty ])
+
+	const filteredBids = React.useMemo(() => {
+		return orderBook?.bids.filter(filterBook) || [];
+	}, [ orderBook?.bids, filterBook ]);
+
+	const filteredAsks = React.useMemo(() => {
+		return orderBook?.asks.filter(filterBook) || [];
+	}, [ orderBook?.asks, filterBook ]);
+
 	return (
 		<PageLayout 
 			title="Trading Panel" 
@@ -298,15 +315,24 @@ export function Home () {
 							<Button loading={loading === 'load-open-short'} onClick={openShort} block icon={<ArrowDownOutlined />}>Open Short</Button>
 						</Flex>
 					</Form>
-					<positionTable.Provider value={{ onRemove: closePosition }}>
-						<Table columns={positionColumns} dataSource={positions} />
-					</positionTable.Provider>
+					{
+						positions.length ?
+						<positionTable.Provider value={{ onRemove: closePosition }}>
+							<Table columns={positionColumns} dataSource={positions} />
+						</positionTable.Provider> : null
+					}
 					{
 						orderBook ?
-						<Flex justify="space-between">
-							<Table style={{ width: "100%"}} pagination={false} columns={obBids} dataSource={orderBook.bids} />
-							<Table style={{ width: "100%"}} pagination={false} columns={obAsks} dataSource={orderBook.asks} />
-						</Flex> : null
+						<>
+							<div style={{ textAlign: "left" }}>
+								<InputNumber value={filterQty} onChange={setFilterQty} prefix={<FilterOutlined />} placeholder="Qty" />
+							</div>
+							<Flex justify="space-between">
+								<Table style={{ width: "100%"}} pagination={false} columns={obBids} dataSource={filteredBids} />
+								<Table style={{ width: "100%"}} pagination={false} columns={obAsks} dataSource={filteredAsks} />
+							</Flex>
+						</>
+						: null
 					}
 				</Space>
 			</div>
