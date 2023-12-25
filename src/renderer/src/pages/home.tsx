@@ -178,14 +178,14 @@ export function Home () {
 				</Link>
 			}>
 			<div style={{ margin: "auto", maxWidth: 450 }}>
+				<Typography.Title type="secondary">
+					{
+						loading === "load-ticker" ? 'Load Ticker...' :
+						ticker ? <>BID/ASK {ticker.bid}/{ticker.ask}</> : 
+						"Offline"
+					}
+				</Typography.Title>
 				<Space direction="vertical" size="large">
-					<Typography.Title type="secondary">
-						{
-							loading === "load-ticker" ? 'Load Ticker...' :
-							ticker ? <>BID/ASK {ticker.bid}/{ticker.ask}</> : 
-							"Offline"
-						}
-					</Typography.Title>
 					<Form form={form}>
 						<Form.Item name="provider">
 							<Select placeholder='Provider'>
