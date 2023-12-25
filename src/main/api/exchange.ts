@@ -33,16 +33,12 @@ export class ExchangeApi {
 
 	private handleExchangeRequest = async (evt: IpcMainEvent, ...args: any[]) => {
 		const [ msgid, provider, method, ...params ] = args
-		const timekey = `${provider.provider}-${method}`;
-		console.time(timekey);
 		try {
 			const ex = this.getOrCreateExchange(provider);
 			const result = await ex[method](...params);
 			evt.reply(msgid, null, result);
 		} catch (e) {
 			evt.reply(msgid, e)
-		} finally {
-			console.timeEnd(timekey);
 		}
 	}
 }

@@ -177,7 +177,7 @@ export function Home () {
 					<Button icon={<SettingOutlined />} />
 				</Link>
 			}>
-			<div style={{ margin: "auto", maxWidth: 450 }}>
+			<div style={{ textAlign: "center" }}>
 				<Typography.Title type="secondary">
 					{
 						loading === "load-ticker" ? 'Load Ticker...' :
