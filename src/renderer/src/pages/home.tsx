@@ -22,7 +22,7 @@ export function Home () {
 
 	const selectedSymbol: string = Form.useWatch('symbol', form);
 
-	const [ loading, setLoading ] = React.useState<'load-symbols' | 'load-open-long' | 'load-open-short' | 'none'>('none')
+	const [ loading, setLoading ] = React.useState<'load-markets' | 'load-open-long' | 'load-open-short' | 'load-ticker' | 'none'>('none')
 
 	const provider = React.useMemo(() => {
 		if (selectedProviderId)
@@ -34,7 +34,7 @@ export function Home () {
 		if (!provider) return;
 
 		(async () => {
-			setLoading('load-symbols')
+			setLoading('load-markets')
 			try {
 				const markets = await window.exchangeApi(provider, 'fetchMarkets');
 				console.log(markets)
@@ -62,7 +62,10 @@ export function Home () {
 			setTicker(ticker);
 		}
 
-		loadTickers();
+		setLoading('load-ticker');
+		loadTickers().finally(() => {
+			setLoading('none');
+		});
 		const watch = setInterval(loadTickers, 3000);
 
 		return () => {
@@ -130,11 +133,13 @@ export function Home () {
 				</Link>
 			}>
 			<Form form={form} style={{ maxWidth: 450, margin: "auto" }}>
-				{
-					ticker ?
-					<Typography.Title type="secondary">BID/ASK {ticker.bid}/{ticker.ask}</Typography.Title> :
-					null
-				}
+				<Typography.Title type="secondary">
+					{
+						loading === "load-ticker" ? 'Load Ticker...' :
+						ticker ? <>BID/ASK {ticker.bid}/{ticker.ask}</> : 
+						"Offline"
+					}
+				</Typography.Title>
 				<Form.Item name="provider">
 					<Select placeholder='Provider'>
 						{providers.map(p => {
@@ -143,7 +148,7 @@ export function Home () {
 					</Select>
 				</Form.Item>
 				<Form.Item name={'symbol'}>
-					<Select disabled={loading === 'load-symbols'} loading={loading === 'load-symbols'} placeholder='Symbol' showSearch>
+					<Select disabled={loading === 'load-markets'} loading={loading === 'load-markets'} placeholder='Symbol' showSearch>
 						{markets.map(m => {
 							if (!m) return null;
 							return <Select.Option value={m.symbol} key={m.symbol}>{m.symbol}</Select.Option>
