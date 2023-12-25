@@ -5,7 +5,7 @@ import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 import { storage } from "@renderer/components/Storage";
 import { Provider } from "@renderer/components/entities";
-import type { Market, Position, Ticker } from "ccxt";
+import type { Market, OrderBook, Position, Ticker } from "ccxt";
 
 const positionTable = React.createContext({
 	onRemove: (_i: Position) => Promise.resolve()
@@ -34,6 +34,16 @@ const positionColumns: TableColumnsType<Position> = [
 	{ title: "", key: "actions", dataIndex: "id", render: (_, i) => <PositionActions i={i} /> },
 ]
 
+const obBids: TableColumnsType<OrderBook['bids'][number]> = [
+	{ title: "", key: "value", dataIndex: "1", align: "right" },
+	{ title: "Bids", key: "price", dataIndex: "0", align: "right" },
+]
+
+const obAsks: TableColumnsType<OrderBook['asks'][number]> = [
+	{ title: "Asks", key: "asks", dataIndex: "0" },
+	{ title: "", key: "value", dataIndex: "1" },
+]
+
 export function Home () {
 
 	const [ form ] = Form.useForm();
@@ -45,6 +55,8 @@ export function Home () {
 	const [ ticker, setTicker ] = React.useState<Ticker | null>(null)
 
 	const [ positions, setPositions ] = React.useState<Position[]>([]);
+
+	const [ orderBook, setOrderBook ] = React.useState<OrderBook | null>(null)
 
 	const selectedProviderId: string = Form.useWatch('provider', form);
 
@@ -58,19 +70,21 @@ export function Home () {
 		return null;
 	}, [ providers, selectedProviderId ]);
 
-	React.useEffect(() => {
+	const loadMarkets = React.useCallback(async () => {
 		if (!provider) return;
 
-		(async () => {
-			setLoading('load-markets')
-			try {
-				const markets = await window.exchangeApi(provider, 'fetchMarkets');
-				setMarkets(markets);
-			} finally {
-				setLoading('none');
-			}
-		})()
-	}, [ provider ]);
+		setLoading('load-markets')
+		try {
+			const markets = await window.exchangeApi(provider, 'fetchMarkets');
+			setMarkets(markets);
+		} finally {
+			setLoading('none');
+		}
+	}, [ provider ])
+
+	React.useEffect(() => {
+		loadMarkets();
+	}, [ loadMarkets ]);
 
 	React.useEffect(() => {
 		(async () => {
@@ -78,26 +92,6 @@ export function Home () {
 			setProviders(data);
 		})();
 	}, []);
-
-	React.useEffect(() => {
-		if (!selectedSymbol) return;
-		if (!provider) return;
-
-		const loadTickers = async () => {
-			const ticker: Ticker = await window.exchangeApi(provider!, 'fetchTicker', selectedSymbol);
-			setTicker(ticker);
-		}
-
-		setLoading('load-ticker');
-		loadTickers().finally(() => {
-			setLoading('none');
-		});
-		const watch = setInterval(loadTickers, 3000);
-
-		return () => {
-			clearInterval(watch);
-		}
-	}, [ selectedSymbol, provider ]);
 
 	/**
 	 * We have some problem with TP/SL CCXT BingX
@@ -150,19 +144,105 @@ export function Home () {
 		openPosition('short');
 	}, [ openPosition ]);
 
-	const loadPositions = React.useCallback(async () => {
-		if (!provider) return;
-		const positions = await window.exchangeApi(provider, 'fetchPositions');
-		setPositions(positions);
-	}, [ provider ]);
+	const WatchPositions = React.useMemo(() => {
+		return class {
+
+			private watch = true;
+
+			off () {
+				this.watch = false;
+			}
+
+			constructor () {
+				this.start();
+			}
+
+			private async start () {
+				if (!provider) return;
+				while (this.watch) {
+					const positions = await window.exchangeApi(provider, 'fetchPositions');
+					setPositions(positions);
+				}
+			}
+		}
+	}, [ provider ])
+
+	const WatchOrderBook = React.useMemo(() => {
+		return class {
+
+			private watch = true;
+
+			off () {
+				this.watch = false;
+			}
+
+			constructor () {
+				this.start();
+			}
+
+			private async start () {
+				if (!provider) return;
+				if (!selectedSymbol) return;
+
+				while (this.watch) {
+					const ob: OrderBook = await window.exchangeApi(provider, 'fetchOrderBook', selectedSymbol);
+					setOrderBook(ob);
+				}
+			}
+		}
+	}, [ provider, selectedSymbol ])
+
+	const WatchTicker = React.useMemo(() => {
+		return class {
+
+			private watch = true;
+
+			private first = true;
+
+			off () {
+				this.watch = false;
+			}
+
+			constructor () {
+				this.start();
+			}
+
+			private async start () {
+				if (!provider) return;
+				if (!selectedSymbol) return;
+
+				setLoading('load-ticker');
+				while (this.watch) {
+					const ticker: Ticker = await window.exchangeApi(provider, 'fetchTicker', selectedSymbol);
+					setTicker(ticker);
+					if (this.first)
+						setLoading('none');
+					this.first = false
+				}
+			}
+		}
+	}, [ provider, selectedSymbol ])
 
 	React.useEffect(() => {
-		loadPositions();
-		const watch = setInterval(loadPositions, 10000);
+		const watch = new WatchTicker();
 		return () => {
-			clearInterval(watch);
+			watch.off();
 		}
-	}, [ loadPositions ]);
+	}, [ WatchTicker ]);
+
+	React.useEffect(() => {
+		const watch = new WatchPositions();
+		return () => {
+			watch.off();
+		}
+	}, [ WatchPositions ]);
+
+	React.useEffect(() => {
+		const watch = new WatchOrderBook();
+		return () => {
+			watch.off();
+		}
+	}, [ WatchOrderBook ]);
 
 	const closePosition = React.useCallback(async (i: Position) => {
 		if (!provider) return;
@@ -221,6 +301,13 @@ export function Home () {
 					<positionTable.Provider value={{ onRemove: closePosition }}>
 						<Table columns={positionColumns} dataSource={positions} />
 					</positionTable.Provider>
+					{
+						orderBook ?
+						<Flex justify="space-between">
+							<Table style={{ width: "100%"}} pagination={false} columns={obBids} dataSource={orderBook.bids} />
+							<Table style={{ width: "100%"}} pagination={false} columns={obAsks} dataSource={orderBook.asks} />
+						</Flex> : null
+					}
 				</Space>
 			</div>
 		</PageLayout>
