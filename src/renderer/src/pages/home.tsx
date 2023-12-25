@@ -1,12 +1,38 @@
-import { Button, Flex, Form, InputNumber, Select, Typography, notification } from "antd";
-import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined } from '@ant-design/icons'
+import { Button, Flex, Form, InputNumber, Select, Space, Table, TableColumnsType, Typography, notification } from "antd";
+import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined, DeleteOutlined } from '@ant-design/icons'
 import React from "react";
 import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 import { storage } from "@renderer/components/Storage";
 import { Provider } from "@renderer/components/entities";
-import type { Market, Ticker } from "ccxt";
+import type { Market, Position, Ticker } from "ccxt";
 
+const positionTable = React.createContext({
+	onRemove: (_i: Position) => Promise.resolve()
+});
+
+function PositionActions ({ i }: { i: Position }) {
+	const { onRemove } = React.useContext(positionTable);
+	const [ loading, setLoading ] = React.useState<'remove' | 'none'>('none');
+	const remove = React.useCallback(() => {
+		setLoading('remove')
+		onRemove(i).finally(() => {
+			setLoading('none')
+		});
+	}, [ onRemove, i ]);
+	return (
+		<Flex justify="end">
+			<Button loading={loading === "remove"} onClick={remove} size="small" danger icon={<DeleteOutlined />}/>
+		</Flex>
+	)
+}
+
+const positionColumns: TableColumnsType<Position> = [
+	{ title: "Symbol", key: "symbol", dataIndex: "symbol"},
+	{ title: "Side", key: "side", dataIndex: "side"},
+	{ title: "PNL", key: "unrealizedPnl", dataIndex: "unrealizedPnl" },
+	{ title: "", key: "actions", dataIndex: "id", render: (_, i) => <PositionActions i={i} /> },
+]
 
 export function Home () {
 
@@ -17,6 +43,8 @@ export function Home () {
 	const [ markets, setMarkets ] = React.useState<Market[]>([]);
 
 	const [ ticker, setTicker ] = React.useState<Ticker | null>(null)
+
+	const [ positions, setPositions ] = React.useState<Position[]>([]);
 
 	const selectedProviderId: string = Form.useWatch('provider', form);
 
@@ -37,7 +65,6 @@ export function Home () {
 			setLoading('load-markets')
 			try {
 				const markets = await window.exchangeApi(provider, 'fetchMarkets');
-				console.log(markets)
 				setMarkets(markets);
 			} finally {
 				setLoading('none');
@@ -58,7 +85,6 @@ export function Home () {
 
 		const loadTickers = async () => {
 			const ticker: Ticker = await window.exchangeApi(provider!, 'fetchTicker', selectedSymbol);
-			console.info('LOAD:', ticker.symbol, ticker.close)
 			setTicker(ticker);
 		}
 
@@ -122,7 +148,26 @@ export function Home () {
 
 	const openShort = React.useCallback(() => {
 		openPosition('short');
-	}, [ openPosition ])
+	}, [ openPosition ]);
+
+	const loadPositions = React.useCallback(async () => {
+		if (!provider) return;
+		const positions = await window.exchangeApi(provider, 'fetchPositions');
+		setPositions(positions);
+	}, [ provider ]);
+
+	React.useEffect(() => {
+		loadPositions();
+		const watch = setInterval(loadPositions, 10000);
+		return () => {
+			clearInterval(watch);
+		}
+	}, [ loadPositions ]);
+
+	const closePosition = React.useCallback(async (i: Position) => {
+		if (!provider) return;
+		await window.exchangeApi(provider, 'closePosition', i.symbol, i.side, { id: i.id })
+	}, [ provider ]);
 
 	return (
 		<PageLayout 
@@ -132,45 +177,52 @@ export function Home () {
 					<Button icon={<SettingOutlined />} />
 				</Link>
 			}>
-			<Form form={form} style={{ maxWidth: 450, margin: "auto" }}>
-				<Typography.Title type="secondary">
-					{
-						loading === "load-ticker" ? 'Load Ticker...' :
-						ticker ? <>BID/ASK {ticker.bid}/{ticker.ask}</> : 
-						"Offline"
-					}
-				</Typography.Title>
-				<Form.Item name="provider">
-					<Select placeholder='Provider'>
-						{providers.map(p => {
-							return <Select.Option value={p.id} key={p.id}>{p.name} - {p.provider}</Select.Option>
-						})}
-					</Select>
-				</Form.Item>
-				<Form.Item name={'symbol'}>
-					<Select disabled={loading === 'load-markets'} loading={loading === 'load-markets'} placeholder='Symbol' showSearch>
-						{markets.map(m => {
-							if (!m) return null;
-							return <Select.Option value={m.symbol} key={m.symbol}>{m.symbol}</Select.Option>
-						})}
-					</Select>
-				</Form.Item>
-				<Form.Item name="margin">
-					<InputNumber placeholder="Margin" style={{ width: '100%'}} />
-				</Form.Item>
-				<Flex gap={8}>
-					<Form.Item name="tp" style={{ width: "100%" }}>
-						<InputNumber style={{ width: "100%" }} placeholder="TP %"/>
-					</Form.Item>
-					<Form.Item name="sl" style={{ width: "100%" }}>
-						<InputNumber style={{ width: "100%" }} placeholder="SL %"/>
-					</Form.Item>
-				</Flex>
-				<Flex gap={8}>
-					<Button loading={loading === 'load-open-long'} onClick={openLong} block type="primary" icon={<ArrowUpOutlined />}>Open Long</Button>
-					<Button loading={loading === 'load-open-short'} onClick={openShort} block icon={<ArrowDownOutlined />}>Open Short</Button>
-				</Flex>
-			</Form>
+			<div style={{ margin: "auto", maxWidth: 450 }}>
+				<Space direction="vertical" size="large">
+					<Typography.Title type="secondary">
+						{
+							loading === "load-ticker" ? 'Load Ticker...' :
+							ticker ? <>BID/ASK {ticker.bid}/{ticker.ask}</> : 
+							"Offline"
+						}
+					</Typography.Title>
+					<Form form={form}>
+						<Form.Item name="provider">
+							<Select placeholder='Provider'>
+								{providers.map(p => {
+									return <Select.Option value={p.id} key={p.id}>{p.name} - {p.provider}</Select.Option>
+								})}
+							</Select>
+						</Form.Item>
+						<Form.Item name={'symbol'}>
+							<Select disabled={loading === 'load-markets'} loading={loading === 'load-markets'} placeholder='Symbol' showSearch>
+								{markets.map(m => {
+									if (!m) return null;
+									return <Select.Option value={m.symbol} key={m.symbol}>{m.symbol}</Select.Option>
+								})}
+							</Select>
+						</Form.Item>
+						<Form.Item name="margin">
+							<InputNumber placeholder="Margin" style={{ width: '100%'}} />
+						</Form.Item>
+						<Flex gap={8}>
+							<Form.Item name="tp" style={{ width: "100%" }}>
+								<InputNumber style={{ width: "100%" }} placeholder="TP %"/>
+							</Form.Item>
+							<Form.Item name="sl" style={{ width: "100%" }}>
+								<InputNumber style={{ width: "100%" }} placeholder="SL %"/>
+							</Form.Item>
+						</Flex>
+						<Flex gap={8}>
+							<Button loading={loading === 'load-open-long'} onClick={openLong} block type="primary" icon={<ArrowUpOutlined />}>Open Long</Button>
+							<Button loading={loading === 'load-open-short'} onClick={openShort} block icon={<ArrowDownOutlined />}>Open Short</Button>
+						</Flex>
+					</Form>
+					<positionTable.Provider value={{ onRemove: closePosition }}>
+						<Table columns={positionColumns} dataSource={positions} />
+					</positionTable.Provider>
+				</Space>
+			</div>
 		</PageLayout>
 	)
 }
