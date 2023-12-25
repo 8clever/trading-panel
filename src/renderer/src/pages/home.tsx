@@ -70,30 +70,42 @@ export function Home () {
 		}
 	}, [ selectedSymbol, provider ]);
 
+	/**
+	 * We have some problem with TP/SL CCXT BingX
+	 * We don't work with directions only with positions BUY or SELL
+	 * for long TP/SL Should be as SELL position
+	 * 1. Create Order without TP/SL
+	 * 2. Create Order with TP/SL opposite direction
+	 */
 	const openPosition = React.useCallback(async (direction: "long" | "short") => {
 		if (!provider) return;
 		if (!ticker) return;
 
 		setLoading(`load-open-${direction}`);
 		const { margin, tp, sl } = await form.validateFields() as { tp: number, sl: number, margin: number };
-		const price = direction === 'long' ? ticker.ask : ticker.bid;
+		const islong = direction === 'long';
+		const price = islong ? ticker.ask : ticker.bid;
 		const symbol = ticker.symbol;
 		const amount = margin / price!
-		const side = direction === "long" ? "buy" : "sell";
 		const type = 'market';
 		const params: Record<string, object | number> = {};
+		const side = islong ? "buy" : "sell";
 		if (tp && price) {
 			const range = price / 100 * tp
-			const triggerPrice = direction === "long" ? price + range : price - range;
+			const triggerPrice = islong ? price + range : price - range;
 			params.takeProfitPrice = triggerPrice;
 		}
 		if (sl && price) {
 			const range = price / 100 * sl;
-			const triggerPrice = direction === "long" ? price - range : price + range;
+			const triggerPrice = islong ? price - range : price + range;
 			params.stopLossPrice = triggerPrice
 		}
 		try {
-			await window.exchangeApi(provider, 'createOrder', symbol, type, side, amount, price, params);
+			await window.exchangeApi(provider, 'createOrder', symbol, type, side, amount, price, {});
+			for (const trigger of Object.keys(params)) {
+				const oppositeside = side === "buy" ? "sell" : 'buy';
+				await window.exchangeApi(provider, 'createOrder', symbol, type, oppositeside, amount, price, { [trigger]: params[trigger] });
+			}
 		} catch (e) {
 			notification.error({ message: (e as Error).message });
 		} finally {
