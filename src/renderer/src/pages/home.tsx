@@ -5,7 +5,7 @@ import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 import { storage } from "@renderer/components/Storage";
 import { Provider } from "@renderer/components/entities";
-import type { Market, OrderBook, Position, Ticker } from "ccxt";
+import type { Market, OrderBook, Position } from "ccxt";
 import { Watch } from "@renderer/components/watches";
 
 const positionTable = React.createContext({
@@ -53,8 +53,6 @@ export function Home () {
 
 	const [ markets, setMarkets ] = React.useState<Market[]>([]);
 
-	const [ ticker, setTicker ] = React.useState<Ticker | null>(null)
-
 	const [ positions, setPositions ] = React.useState<Position[]>([]);
 
 	const [ orderBook, setOrderBook ] = React.useState<OrderBook | null>(null)
@@ -63,7 +61,7 @@ export function Home () {
 
 	const selectedSymbol: string = Form.useWatch('symbol', form);
 
-	const [ loading, setLoading ] = React.useState<'load-markets' | 'load-open-long' | 'load-open-short' | 'load-ticker' | 'none'>('none')
+	const [ loading, setLoading ] = React.useState<'load-markets' | 'load-open-long' | 'load-open-short' | 'load-orderbook' | 'none'>('none')
 
 	const provider = React.useMemo(() => {
 		if (selectedProviderId)
@@ -103,13 +101,13 @@ export function Home () {
 	 */
 	const openPosition = React.useCallback(async (direction: "long" | "short") => {
 		if (!provider) return;
-		if (!ticker) return;
+		if (!orderBook) return;
 
 		setLoading(`load-open-${direction}`);
 		const { margin, tp, sl } = await form.validateFields() as { tp: number, sl: number, margin: number };
 		const islong = direction === 'long';
-		const price = islong ? ticker.ask : ticker.bid;
-		const symbol = ticker.symbol;
+		const price = islong ? orderBook.asks[0][0] : orderBook.bids[0][0];
+		const symbol = selectedSymbol;
 		const amount = margin / price!
 		const type = 'market';
 		const params: Record<string, object | number> = {};
@@ -135,7 +133,7 @@ export function Home () {
 		} finally {
 			setLoading('none')
 		}
-	}, [ provider, ticker, form.validateFields ]);
+	}, [ provider, orderBook, selectedSymbol, form.validateFields ]);
 
 	const openLong = React.useCallback(() => {
 		openPosition('long');
@@ -161,22 +159,6 @@ export function Home () {
 
 	const WatchOrderBook = React.useMemo(() => {
 		return class extends Watch {
-			cb = async () => {
-				if (!provider) return;
-				if (!selectedSymbol) return;
-
-				try {
-					const ob: OrderBook = await window.exchangeApi(provider, 'fetchOrderBook', selectedSymbol);
-					setOrderBook(ob);
-				} catch (e) {
-					console.warn(e);
-				}
-			}
-		}
-	}, [ provider, selectedSymbol ])
-
-	const WatchTicker = React.useMemo(() => {
-		return class extends Watch {
 
 			private first = true;
 
@@ -184,31 +166,23 @@ export function Home () {
 				if (!provider) return;
 				if (!selectedSymbol) return;
 
-				if (this.first)
-					setLoading('load-ticker');
+				if (this.first)	
+					setLoading('load-orderbook')
 
 				try {
-					const ticker: Ticker = await window.exchangeApi(provider, 'fetchTicker', selectedSymbol);
-					setTicker(ticker);
-					
-					if (this.first)
-						setLoading('none');
-					
-					this.first = false
+					const ob: OrderBook = await window.exchangeApi(provider, 'fetchOrderBook', selectedSymbol);
+					setOrderBook(ob);
+
+					if (this.first) {
+						setLoading('none')
+						this.first = false;
+					}
 				} catch (e) {
 					console.warn(e);
 				}
 			}
 		}
 	}, [ provider, selectedSymbol ])
-
-	React.useEffect(() => {
-		const watch = new WatchTicker();
-		watch.start();
-		return () => {
-			watch.off();
-		}
-	}, [ WatchTicker ]);
 
 	React.useEffect(() => {
 		const watch = new WatchPositions();
@@ -293,8 +267,8 @@ export function Home () {
 			<div style={{ textAlign: "center" }}>
 				<Typography.Title type="secondary">
 					{
-						loading === "load-ticker" ? 'Load Ticker...' :
-						ticker ? <>BID/ASK {ticker.bid}/{ticker.ask}</> : 
+						loading === "load-orderbook" ? 'Load Ticker...' :
+						orderBook ? <>BID/ASK {orderBook.bids[0][0]}/{orderBook.asks[0][0]}</> : 
 						"Offline"
 					}
 				</Typography.Title>
