@@ -160,8 +160,12 @@ export function Home () {
 			private async start () {
 				if (!provider) return;
 				while (this.watch) {
-					const positions = await window.exchangeApi(provider, 'fetchPositions');
-					setPositions(positions);
+					try {
+						const positions = await window.exchangeApi(provider, 'fetchPositions');
+						setPositions(positions);
+					} catch (e) {
+						console.warn(e);
+					}
 				}
 			}
 		}
@@ -185,8 +189,12 @@ export function Home () {
 				if (!selectedSymbol) return;
 
 				while (this.watch) {
-					const ob: OrderBook = await window.exchangeApi(provider, 'fetchOrderBook', selectedSymbol);
-					setOrderBook(ob);
+					try {
+						const ob: OrderBook = await window.exchangeApi(provider, 'fetchOrderBook', selectedSymbol);
+						setOrderBook(ob);
+					} catch (e) {
+						console.warn(e);
+					}
 				}
 			}
 		}
@@ -213,11 +221,15 @@ export function Home () {
 
 				setLoading('load-ticker');
 				while (this.watch) {
-					const ticker: Ticker = await window.exchangeApi(provider, 'fetchTicker', selectedSymbol);
-					setTicker(ticker);
-					if (this.first)
-						setLoading('none');
-					this.first = false
+					try {
+						const ticker: Ticker = await window.exchangeApi(provider, 'fetchTicker', selectedSymbol);
+						setTicker(ticker);
+						if (this.first)
+							setLoading('none');
+						this.first = false
+					} catch (e) {
+						console.warn(e);
+					}
 				}
 			}
 		}
