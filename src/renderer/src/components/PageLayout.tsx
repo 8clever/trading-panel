@@ -1,6 +1,7 @@
 import { Flex, Layout, Space, Typography } from "antd"
 import React from "react"
 import styled from "styled-components"
+import { Scrollbar } from 'react-scrollbars-custom';
 
 const { Header, Content } = Layout
 
@@ -24,9 +25,11 @@ export function PageLayout (props: IProps) {
 				</Flex>
 			</Header>
 			<Content>
-				<BodyContent>
-					{props.children}
-				</BodyContent>
+				<Scrollbar>
+					<BodyContent>
+						{props.children}
+					</BodyContent>
+				</Scrollbar>
 			</Content>
 		</FullLayout>
 	)
