@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { storage } from "@renderer/components/Storage";
 import { Provider } from "@renderer/components/entities";
 import type { Market, OrderBook, Position, Ticker } from "ccxt";
+import { Watch } from "@renderer/components/watches";
 
 const positionTable = React.createContext({
 	onRemove: (_i: Position) => Promise.resolve()
@@ -145,91 +146,57 @@ export function Home () {
 	}, [ openPosition ]);
 
 	const WatchPositions = React.useMemo(() => {
-		return class {
-
-			private watch = true;
-
-			off () {
-				this.watch = false;
-			}
-
-			constructor () {
-				this.start();
-			}
-
-			private async start () {
+		return class extends Watch {
+			cb = async () => {
 				if (!provider) return;
-				while (this.watch) {
-					try {
-						const positions = await window.exchangeApi(provider, 'fetchPositions');
-						setPositions(positions);
-					} catch (e) {
-						console.warn(e);
-					}
+				try {
+					const positions = await window.exchangeApi(provider, 'fetchPositions');
+					setPositions(positions);
+				} catch (e) {
+					console.warn(e);
 				}
 			}
 		}
 	}, [ provider ])
 
 	const WatchOrderBook = React.useMemo(() => {
-		return class {
-
-			private watch = true;
-
-			off () {
-				this.watch = false;
-			}
-
-			constructor () {
-				this.start();
-			}
-
-			private async start () {
+		return class extends Watch {
+			cb = async () => {
 				if (!provider) return;
 				if (!selectedSymbol) return;
 
-				while (this.watch) {
-					try {
-						const ob: OrderBook = await window.exchangeApi(provider, 'fetchOrderBook', selectedSymbol);
-						setOrderBook(ob);
-					} catch (e) {
-						console.warn(e);
-					}
+				try {
+					const ob: OrderBook = await window.exchangeApi(provider, 'fetchOrderBook', selectedSymbol);
+					setOrderBook(ob);
+				} catch (e) {
+					console.warn(e);
 				}
 			}
 		}
 	}, [ provider, selectedSymbol ])
 
 	const WatchTicker = React.useMemo(() => {
-		return class {
-
-			private watch = true;
+		return class extends Watch {
 
 			private first = true;
 
-			off () {
-				this.watch = false;
-			}
-
-			constructor () {
-				this.start();
-			}
-
-			private async start () {
+			cb = async () => {
 				if (!provider) return;
 				if (!selectedSymbol) return;
 
-				setLoading('load-ticker');
-				while (this.watch) {
-					try {
-						const ticker: Ticker = await window.exchangeApi(provider, 'fetchTicker', selectedSymbol);
-						setTicker(ticker);
-						if (this.first)
-							setLoading('none');
-						this.first = false
-					} catch (e) {
-						console.warn(e);
-					}
+				if (this.first)
+					setLoading('load-ticker');
+
+				try {
+					const ticker: Ticker = await window.exchangeApi(provider, 'fetchTicker', selectedSymbol);
+					setTicker(ticker);
+					
+					if (this.first)
+						setLoading('none');
+					
+					this.first = false
+				} catch (e) {
+					console.warn(e);
 				}
 			}
 		}
@@ -237,6 +204,7 @@ export function Home () {
 
 	React.useEffect(() => {
 		const watch = new WatchTicker();
+		watch.start();
 		return () => {
 			watch.off();
 		}
@@ -244,6 +212,7 @@ export function Home () {
 
 	React.useEffect(() => {
 		const watch = new WatchPositions();
+		watch.start();
 		return () => {
 			watch.off();
 		}
@@ -251,6 +220,7 @@ export function Home () {
 
 	React.useEffect(() => {
 		const watch = new WatchOrderBook();
+		watch.start();
 		return () => {
 			watch.off();
 		}
@@ -277,6 +247,40 @@ export function Home () {
 	const filteredAsks = React.useMemo(() => {
 		return orderBook?.asks.filter(filterBook) || [];
 	}, [ orderBook?.asks, filterBook ]);
+
+	const bidAskRel = React.useMemo(() => {
+		if (!orderBook) return null;
+
+		const bidVol = filteredBids[0]?.[1] || 0;
+		const askVol = filteredAsks[0]?.[1] || 0;
+		const bidPrice = filteredBids[0]?.[0] || 0;
+		const askPrice = filteredAsks[0]?.[0] || 0;
+		const bidClosestPrice = orderBook.bids[0][0]!
+		const asksClosestPrice = orderBook.asks[0][0]!;
+		const bidSpread = bidClosestPrice - bidPrice;
+		const askSpread = askPrice - asksClosestPrice;
+		const totalSpread = askPrice - bidPrice;
+		const totalVol = bidVol + askVol;
+		const bidsVolRel = toPercent(bidVol, totalVol);
+		const asksVolRel = toPercent(askVol, totalVol);
+		const bidsPriceRel = toPercent(bidSpread, totalSpread);
+		const asksPriceRel = toPercent(askSpread, totalSpread);
+
+		return {
+			bidsVolRel,
+			asksVolRel,
+			bidsPriceRel,
+			asksPriceRel
+		}
+
+		function safeNumber (num: number) {
+			return Number.isFinite(num) ? num : 0
+		}
+
+		function toPercent (val: number, total: number) {
+			return safeNumber(Math.floor(val / total * 100))
+		}
+	}, [ orderBook, filteredBids, filteredAsks ])
 
 	return (
 		<PageLayout 
@@ -339,6 +343,10 @@ export function Home () {
 							<div style={{ textAlign: "left" }}>
 								<InputNumber value={filterQty} onChange={setFilterQty} prefix={<FilterOutlined />} placeholder="Qty" />
 							</div>
+							<Flex justify="space-between">
+								<small>Vol: {bidAskRel?.bidsVolRel}% Spread: {bidAskRel?.bidsPriceRel}%</small>
+								<small>Vol: {bidAskRel?.asksVolRel}% Spread: {bidAskRel?.asksPriceRel}%</small>
+							</Flex>
 							<Flex justify="space-between">
 								<Table style={{ width: "100%"}} pagination={false} columns={obBids} dataSource={filteredBids} />
 								<Table style={{ width: "100%"}} pagination={false} columns={obAsks} dataSource={filteredAsks} />
