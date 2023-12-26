@@ -1,6 +1,6 @@
 {
   "name": "trading-panel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Trading Panel",
   "main": "./out/main/index.js",
   "author": "Ivan Vityaev",
