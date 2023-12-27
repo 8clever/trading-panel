@@ -254,7 +254,26 @@ export function Home () {
 		function toPercent (val: number, total: number) {
 			return safeNumber(Math.floor(val / total * 100))
 		}
-	}, [ orderBook, filteredBids, filteredAsks ])
+	}, [ orderBook, filteredBids, filteredAsks ]);
+
+	const control = React.useMemo(() => {
+		if (!bidAskRel) return null;
+		
+		const { bidsPriceRel, asksPriceRel, bidsVolRel, asksVolRel } = bidAskRel
+		const control: "Bids" | "Asks" = bidsPriceRel < asksPriceRel ? 'Bids' : "Asks"
+		const volTarget = 70;
+		let direction: "Long" | "Short" | "" = "";
+
+		if (control === "Bids")
+			direction = bidsVolRel > volTarget ? "Long" : "Short";
+		if (control === "Asks")
+			direction = asksVolRel > volTarget ? "Short" : "Long";
+
+			return {
+				control,
+				direction
+			}
+	}, [ bidAskRel ]);
 
 	return (
 		<PageLayout 
@@ -317,6 +336,13 @@ export function Home () {
 							<div style={{ textAlign: "left" }}>
 								<InputNumber value={filterQty} onChange={setFilterQty} prefix={<FilterOutlined />} placeholder="Qty" />
 							</div>
+							<Space style={{ justifyContent: "start" }}>
+								<Typography.Text>Control: {control?.control}</Typography.Text>
+								<div>
+									<Typography.Text>Direction: </Typography.Text>
+									<Typography.Text type={control?.direction === "Long" ? "success" : "danger"}>{control?.direction}</Typography.Text>
+								</div>
+							</Space>
 							<Flex justify="space-between">
 								<small>Vol: {bidAskRel?.bidsVolRel}% Spread: {bidAskRel?.bidsPriceRel}%</small>
 								<small>Vol: {bidAskRel?.asksVolRel}% Spread: {bidAskRel?.asksPriceRel}%</small>
