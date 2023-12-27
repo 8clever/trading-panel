@@ -336,13 +336,15 @@ export function Home () {
 							<div style={{ textAlign: "left" }}>
 								<InputNumber value={filterQty} onChange={setFilterQty} prefix={<FilterOutlined />} placeholder="Qty" />
 							</div>
-							<Space style={{ justifyContent: "start" }}>
-								<Typography.Text>Control: {control?.control}</Typography.Text>
-								<div>
-									<Typography.Text>Direction: </Typography.Text>
-									<Typography.Text type={control?.direction === "Long" ? "success" : "danger"}>{control?.direction}</Typography.Text>
-								</div>
-							</Space>
+							<div style={{ textAlign: "left" }}>
+								<Space>
+									<Typography.Text>Control: {control?.control}</Typography.Text>
+									<div>
+										<Typography.Text>Direction: </Typography.Text>
+										<Typography.Text type={control?.direction === "Long" ? "success" : "danger"}>{control?.direction}</Typography.Text>
+									</div>
+								</Space>
+							</div>
 							<Flex justify="space-between">
 								<small>Vol: {bidAskRel?.bidsVolRel}% Spread: {bidAskRel?.bidsPriceRel}%</small>
 								<small>Vol: {bidAskRel?.asksVolRel}% Spread: {bidAskRel?.asksPriceRel}%</small>
