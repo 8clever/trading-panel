@@ -1,6 +1,6 @@
+import * as React from "react";
 import { Button, Flex, Form, InputNumber, Select, Space, Table, TableColumnsType, Typography, notification } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined, DeleteOutlined, FilterOutlined } from '@ant-design/icons'
-import React from "react";
 import { PageLayout } from "@renderer/components/PageLayout";
 import { Link } from "react-router-dom";
 import { storage } from "@renderer/components/Storage";
@@ -205,7 +205,7 @@ export function Home () {
 		await window.exchangeApi(provider, 'closePosition', i.symbol, i.side, { id: i.id })
 	}, [ provider ]);
 
-	const [ filterQty, setFilterQty ] = React.useState<number | null>();
+	const [ filterQty, setFilterQty ] = React.useState<number>();
 
 	const filterBook = React.useCallback((value: OrderBook['asks'][number]) => {
 		if (filterQty && filterQty > 0 && value[1]) {
@@ -225,8 +225,8 @@ export function Home () {
 	const bidAskRel = React.useMemo(() => {
 		if (!orderBook) return null;
 
-		const bidVol = filteredBids[0]?.[1] || 0;
-		const askVol = filteredAsks[0]?.[1] || 0;
+		const bidVol = filteredBids.reduce((m, [ _price, vol]) => m + vol!, 0)
+		const askVol = filteredAsks.reduce((m, [ _price, vol]) => m + vol!, 0)
 		const bidPrice = filteredBids[0]?.[0] || 0;
 		const askPrice = filteredAsks[0]?.[0] || 0;
 		const bidClosestPrice = orderBook.bids[0][0]!
@@ -315,7 +315,7 @@ export function Home () {
 						orderBook ?
 						<>
 							<div style={{ textAlign: "left" }}>
-								<InputNumber value={filterQty} onChange={setFilterQty} prefix={<FilterOutlined />} placeholder="Qty" />
+								<InputNumber value={filterQty} onChange={v => setFilterQty(v)} prefix={<FilterOutlined />} placeholder="Qty" />
 							</div>
 							<Flex justify="space-between">
 								<small>Vol: {bidAskRel?.bidsVolRel}% Spread: {bidAskRel?.bidsPriceRel}%</small>
