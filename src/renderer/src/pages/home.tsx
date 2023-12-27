@@ -205,7 +205,7 @@ export function Home () {
 		await window.exchangeApi(provider, 'closePosition', i.symbol, i.side, { id: i.id })
 	}, [ provider ]);
 
-	const [ filterQty, setFilterQty ] = React.useState<number>();
+	const [ filterQty, setFilterQty ] = React.useState<number | null>();
 
 	const filterBook = React.useCallback((value: OrderBook['asks'][number]) => {
 		if (filterQty && filterQty > 0 && value[1]) {
@@ -315,7 +315,7 @@ export function Home () {
 						orderBook ?
 						<>
 							<div style={{ textAlign: "left" }}>
-								<InputNumber value={filterQty} onChange={v => setFilterQty(v)} prefix={<FilterOutlined />} placeholder="Qty" />
+								<InputNumber value={filterQty} onChange={setFilterQty} prefix={<FilterOutlined />} placeholder="Qty" />
 							</div>
 							<Flex justify="space-between">
 								<small>Vol: {bidAskRel?.bidsVolRel}% Spread: {bidAskRel?.bidsPriceRel}%</small>
